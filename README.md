@@ -1,4 +1,5 @@
-# PFMS (http://bioinf.icm.uu.se/~pfms/)
+# PFMS 
+http://bioinf.icm.uu.se/~pfms/
 Peak-finder meta server for ChIP-seq data analaysis
 
 developed at LCB - Uppsala University by Marcin Kruczyk and Husen M. Umer.

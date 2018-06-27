@@ -1,0 +1,3 @@
+include MANIFEST.in UserManual.pdf PFMetaserver.py tests.py
+recursive-include src *.py
+recursive-include PeakFinders *

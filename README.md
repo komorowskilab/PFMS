@@ -2,8 +2,8 @@
 Peak-finder meta server for ChIP-seq data analaysis
 
 LCB - Uppsala University
-Marcin Kruczyk (marcin.kruczyk@icm.uu.se)
-Husen M. Umer (husen.umer@icm.uu.se)
+Marcin Kruczyk
+Husen M. Umer
 
      *************Download the distributed package (PFMS-1.3.zip)**********
 --Extract

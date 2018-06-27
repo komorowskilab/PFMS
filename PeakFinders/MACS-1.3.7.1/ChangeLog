@@ -1,0 +1,301 @@
+2009-10-16  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.3.7.1 (Oktoberfest, bug fixed #1)
+	
+	* bin/Constants.py
+
+	Fixed typo. FCSTEP -> FESTEP
+
+	* lib/PeakDetect.py
+
+	The 'femax' attribute bug is fixed
+
+2009-10-02  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.3.7 (Oktoberfest)
+	
+	* bin/macs, lib/PeakDetect.py, lib/IO/__init__.py, lib/OptValidator.py
+
+	Enhancements by Peter Chines:
+
+	1. gzip files are supported. 
+	2. when --diag is on, user can set the increment and endpoint for
+	fold enrichment analysis by setting --fe-step and --fe-max.
+
+	Enhancements by Davide Cittaro:
+
+	1. BAM and SAM formats are supported.
+	2. small changes in the header lines of wiggle output.
+
+	Enhancements by Me:
+	1. I added --fe-min option;
+	2. Bowtie ascii output with suffix ".map" is supported.
+	
+	Bug fixed:
+
+	1. --nolambda bug is fixed. ( reported by Martin in JHU )
+	2. --diag bug is fixed. ( reported by Bogdan Tanasa )
+	3. Function to remove suffix '.fa' is fixed. ( reported by Jeff Johnston )
+	4. Some "fold change" have been changed to "fold enrichment".
+
+2009-06-10  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.3.6.1 (default parameter change)
+	
+	* bin/macs, lib/PeakDetect.py
+
+	"--oldfdr" is removed. The 'oldfdr' behaviour becomes
+	default. "--futurefdr" is added which can turn on the 'new' method
+	introduced in 1.3.6. By default it's off.
+
+	* lib/PeakDetect.py
+
+	Fixed a bug. p-value is corrected a little bit.
+	
+
+2009-05-11  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.3.6 (Birthday cake)
+	
+	* bin/macs
+
+	"track name" is added to the header of BED output file.
+
+	Now the default peak detection method is to consider 5k and 10k
+	nearby regions in treatment data and peak location, 1k, 5k, and
+	10k regions in control data to calculate local bias. The old
+	method can be called through '--old' option.
+
+	Information about how many total/unique tags in treatment or
+	control will be saved in final .xls output.
+
+	* lib/IO/__init__.py
+
+	".fa" will be removed from input tag alignment so only the
+	chromosome names are kept.
+
+	WigTrackI class is added for Wiggle like data structure. (not used
+	now)
+
+	The parser for ELAND multi PET files has been fixed. Now the 5'
+	tag position for a pair will be kept, whereas in the previous
+	version, the middle points are kept.
+
+	* lib/IO/BinKeeper.py
+
+	BinKeeperI class is inspired by Jim Kent's library for UCSC genome
+	browser, which can quickly access certain region for values in a
+	large wiggle like data file. (not used now)
+
+	* lib/OptValidator.py
+
+	typo fixed.
+
+	* lib/PeakDetect.py
+
+	Now the default peak detection method is to consider 5k and 10k
+	nearby regions in treatment data and peak location, 1k, 5k, and
+	10k regions in control data to calculate local bias. The old
+	method can be called through '--old' option.
+
+	Two columns have beed added to BED output file. 4th column: peak
+	name; 5th column: peak score using -10log(10,pvalue) as score.
+
+	* setup.py
+
+	Add support to build a Mac App through 'setup.py py2app', or a
+	Windows executable through 'setup.py py2exe'. You need to install
+	py2app or py2exe package in order to use these functions.
+
+2009-02-12  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.3.5 (local lambda fixed, typo fixed, model figure improved)
+	
+	* PeakDetect.py
+
+	Now, besides 1k, 5k, 10k, MACS will also consider peak size region
+	in control data to calculate local lambda for each peak. Peak
+	calling results will be slightly different with previous version,
+	beware!
+
+	* OptValidator.py
+
+	Typo fixed, ELANDParser -> ELANDResultParser
+
+	* OutputWriter.py
+
+	Now, modeled d value will be shown on the model figure.
+
+2009-01-06  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.3.4 (Happy New Year Version, bug fixed, ELAND multi/PET support)
+	
+	* macs, IO/__init__.py, PeakDetect.py
+
+	Add support for ELAND multi format. Add support for Pair-End
+	experiment, in this case, 5'end and 3'end ELAND multi format files
+	are required for treatment or control data. See 00README file for
+	detail.
+
+	Add wigextend option.
+
+	Add petdist option for Pair-End Tag experiment, which is the best
+	distance between 5' and 3' tags.
+
+	* PeakDetect.py
+
+	Fixed a bug which cause the end positions of every peak region
+	incorrectly added by 1 bp. ( Thanks Mali Salmon!)
+
+	* OutputWriter.py
+	
+	Fix bugs while generating wiggle files. The start position of
+	wiggle file is set to 1 instead of 0.
+
+	Fix a bug that every 10M bps, signals in the first 'd' range are
+	lower than actual. ( Thanks Mali Salmon!)
+
+
+2008-12-03  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.3.3 (wiggle bugs fixed)
+	
+	* OutputWriter.py
+
+	Fix bugs while generating wiggle files. 1. 'span=' is added to
+	'variableStep' line; 2. previously, every 10M bps, the coordinates
+	were wrongly shifted to the right for 'd' basepairs.
+
+	* macs, PeakDetect.py
+
+	Add an option to save wiggle files on different resolution.
+	
+2008-10-02  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.3.2 (tiny bugs fixed)
+
+	* IO/__init__.py
+	
+	Fix 65536 -> 65535. ( Thank Joon) 
+	
+	* Prob.py
+	
+	Improved for binomial function with extra large number. Imported
+	from Cistrome project.
+	
+	* PeakDetect.py
+
+	If treatment channel misses reads in some chromosome included in
+	control channel, or vice versa, MACS will not exit. (Thank Shaun
+	Mahony)
+
+	Instead, MACS will fake a tag at position -1 when calling
+	treatment peaks vs control, but will ignore the chromosome while
+	calling negative peaks.
+
+2008-09-04  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.3.1 (tiny bugs fixed version)
+
+	* Prob.py
+	
+	Hyunjin Gene Shin contributed some codes to Prob.py. Now the
+	binomial functions can tolerate large and small numbers.
+	
+	* IO/__init__.py
+
+	Parsers now split lines in BED/ELAND file using any
+	whitespaces. 'track' or 'browser' lines will be regarded as
+	comment lines. A bug fixed when throwing StrandFormatError. The
+	maximum redundant tag number at a single position can be no less
+	than 65536.
+
+	
+2008-07-15  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.3 (naming clarification version)
+
+	* Naming clarification changes according to our manuscript:
+
+	'frag_len' is changed to 'd'.
+
+	'fold_change' is changed to 'fold_enrichment'.
+	
+	Suggest '--bw' parameter to be determined by users from the real
+	sonication size.
+
+	Maximum FDR is 100% in the output file.
+
+	And other clarifications in 00README file and the documents on the
+	website.
+	
+	* IO/__init__.py
+	If the redundant tag number at a single position is over 32767,
+	just remember 32767, instead of raising an overflow exception.
+	
+	* setup.py
+	fixed a typo.
+
+	* PeakDetect.py
+	Bug fixed for diagnosis report.
+	
+
+2008-07-10  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.2.2gamma
+
+	* Serious bugs fix: 
+
+	Poisson distribution CDF and inverse CDF functions are
+	corrected. They can produce right results even for huge lambda
+	now. So that the p-value and FDR values in the final excel sheet
+	are corrected.
+
+	IO package now can tolerate some rare cases; ELANDParser in IO
+	package is fixed. (Thank Bogdan)
+
+	* Improvement:
+
+	Reverse paired peaks in model are rejected. So there will be no
+	negative 'frag_len'. (Thank Bogdan)
+
+	* Features added:
+	
+	Diagnosis function is completed. Which can output a table file for
+	users to estimate their sequencing depth.
+
+
+2008-06-30  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.2
+	
+	* Probe.py is added!  
+
+	GSL is totally removed from MACS. Instead, I have implemented the
+	CDF and inverse CDF for poisson and binomial distribution purely
+	in python.
+
+	* Constants.py is added!
+
+	Organize constants used in MACS in the Constants.py file.
+
+	* All other files are modified!
+
+	Foldchange calculation is modified. Now the foldchange only be
+	calculated at the peak summit position instead of the whole peak
+	region. The values will be higher and more robust than before.
+
+	Features added:
+
+	1. MACS can save wiggle format files containing the tag number at
+	every 10 bp along the genome. Tags are shifted according to our
+	model before they are calculated.
+
+	2. Model building and local lambda calculation can be skipped with
+	certain options.
+
+	3. A diagnosis report can be generated through '--diag'
+	option. This report can help you get an assumption about the
+	sequencing saturation. This funtion is only in beta stage.
+
+	4. FDR calculation speed is highly improved.
+	
+2008-05-28  Tao Liu  <taoliu@jimmy.harvard.edu>
+	Version 1.1
+	
+	* TabIO, PeakModel.py ...
+	Bug fixed to let MACS tolerate some cases while there is no tag on
+	either plus strand or minus strand.
+
+	* setup.py
+	Check the version of python. If the version is lower than 2.4,
+	refuse to install with warning.
+

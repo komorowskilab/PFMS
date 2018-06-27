@@ -1,0 +1,267 @@
+The latest version of this software is available at 
+
+http://woldlab.caltech.edu/rnaseq
+
+please check the website for updates.
+
+This is the core of the RNA-seq analysis code described in Mortazavi 
+et al (2008). Please make sure that you have read Figure 3 and the 
+methods / supplemental methods of that paper before attempting to 
+use this package for RNA-Seq data analysis. 
+
+ERANGE should run on any Unix-like system supporting python 2.5 or 
+better. The code is developed on Linux and MacOS X on python 2.5. 
+
+Historically, the code for ERANGE grew out of the ChIPSeqMini 
+package from Johnson et al (2007), and some of the key scripts 
+(findallnocontrol.py and getallgenes.py) are shared between the two. 
+This is why ERANGE is "dual-use" and is also why the code for both 
+analyses were kept in common as much as possible. This should be 
+helpful when someone tries to combine ChIP-seq and RNA-seq 
+analyses !
+
+This code is made available as open-source, as described in the 
+copyright file ERANGE.COPYRIGHT.
+
+1. SETTING EXPECTATIONS
+2. REQUIREMENTS
+3. COMMAND LINE OPTIONS
+4. DISPLAYING DATA
+5. ANALYSIS
+6. PIPELINE
+7. CUSTOM CISTEMATIC GENOME ANNOTATIONS
+8. PAIRED-END RNA-SEQ ANALYSIS
+9. EXPRESSED SNP ANALYSIS
+
+1. SETTING EXPECTATIONS
+
+ERANGE is not a point-and-click, turn-key package. 
+
+It is a set of python scripts that, when run in order as a pipeline 
+on the "right" input, will take read data in RDS format and 
+calculate gene expression levels in RPKM (Reads Per kb per Million 
+reads). This pipeline for unpaired reads is embodied in a shell 
+script called runStandardAnalysis.sh, which only takes a few inputs, 
+described in the ANALYSIS and PIPELINE section below.
+
+You should be able to download the data from our website and run the 
+analysis through the pipeline. You will need to map the reads and 
+import them into an RDS dataset as described in README.build-rds.
+
+Because you will likely want to run this package on other genomes 
+(or builds) than the one described in our original paper, you will 
+need to do several additional steps, such as:
+
+- build expanded genomes with splices and spikes
+- check overlap of RNAFAR predictions with repeats
+
+This will require some comfort with running and, if necessary, 
+editing scripts. While the code is sparsely documented, we are 
+making it available so that you can *read it*. We'll be happy to 
+help modifying and updating the code within a reasonable extent 
+and will try to provide more in depth documentation and tutorials 
+on our web site.
+
+While the scripts produce several forms of RPKM, we suggest that 
+the "final" RPKM are the values that most people will be interested 
+in.
+
+*WARNING* A couple of these scripts are pretty memory hungry. If 
+you are going to analyze datasets with > 20M reads or reads with 
+high error rates, you will easily need > 8 GB RAM. We'll rewrite 
+these scripts before releasing 3.0 final to lower the memory 
+footprint. 
+
+2. REQUIREMENTS
+
+1) Python 2.5+ is required because some of the scripts and 
+Cistematic (see below) need pysqlite, which is now bundled in 
+Python.
+
+2) You will also need to use Cistematic 3.0 for some of the scripts 
+marked below that use genes and genomic sequence; in particular, you 
+will also likely need the Cistematic version of the genomes, unless 
+providing your own custom genome and annotations.
+
+Cistematic is available at http://cistematic.caltech.edu 
+
+3) You will need genomic sequences to build the expanded genome, as 
+well as gene models from UCSC. 
+
+(Optional) Python is very slow on large datasets. Use of the psyco 
+module (psyco.sf.net) on 32-bit Linux or all Mac Intel machines to 
+significantly speed up runtime is highly recommended.
+
+(Optional) Several of the ploting scripts also rely on Matplotlib, 
+which is available at matplotlib.sf.net.
+
+
+3. COMMAND LINE OPTIONS
+
+You can find out more about the settings for each python script by 
+typing:
+
+python $ERANGEPATH/<scriptname> 
+
+to see the command line options, where ERANGEPATH is the 
+environmental variable set to the path to the directory 
+holding the ERANGE scripts.
+
+
+For example, if you wanted to know the command line options of the 
+script used to generate supplementary datasets 2-4, combineRPKMs.py , 
+you would type:
+
+python $ERANGEPATH/combineRPKMs.py
+
+and get back a version number and all possible command line options:
+
+version 1.0
+usage: python $ERANGEPATH/combineRPKMs.py firstRPKM expandedRPKM finalRPKM combinedOutfile [-withmultifraction]
+
+where fields in brackets are optional.
+
+
+4. DISPLAYING DATA 
+
+You can output bed-files of the raw reads in the RDS file 
+using makebedfromrds.py and  WIG file using makewiggle.py as 
+described in README.build-rds .
+
+
+5. ANALYSIS
+
+The main steps of a typical, unpaired analysis using ERANGE 
+is shown in RNA-seq.analysisSteps.txt, where each script 
+would be run in order, with the caveat that there are two 
+ways to do the candidate exon analysis (RNAFAR), creatively 
+called "alternative 1" and "alternative 2". 
+
+In alternative 1, we use reads that did not match an existing gene 
+model to identify candidate regions:
+
+# Alternative 1: find new regions outside of gene models with reads piled up 
+python $ERANGEPATH/findall.py RNAFAR LHCN10213.rds LHCN10213.newregions.txt -RNA -minimum 1 -nomulti -flag NM -log rna.log -cache 1
+
+# Alternative 1: filter out new regions that overlap repeats more than a certain fraction 
+#                use "none" if you don't have a repeatmask database
+python $ERANGEPATH/checkrmask.py ../hg19repeats/rmask.db LHCN10213.newregions.txt LHCN10213.newregions.repstatus LHCN10213.newregions.good -log rna.log -startField 1 -cache 1
+
+In alternative 2, we pool multiple RNA-seq datasets into a single 
+RDS database, run it through the two scripts of alternative 1 above, 
+and then use these precomputed candidates to count reads falling in 
+these regions:
+
+# Alternative 2: use a precomputed list of "new" regions (outside of gene models)
+python2.5 $ERANGEPATH/regionCounts.py ../RNAFAR/all.newregions.good LHCN10213.rds LHCN10213.newregions.good
+
+Alternative 1 is the one used by the pipeline script described below.
+
+The scripts will generate a set of intermediate files, the most 
+interesting of which are the final RPKM values. These will be in the 
+following files for the test example:
+
+test.firstpass.rpkm (the unique reads only)
+test.expanded.rpkm (the unique reads + spliced reads  + RNAFAR)
+test.final.rpkm (uniques + spliced + RNAFAR + multireads)
+
+
+6. PIPELINE
+
+IF YOU ARE STORING THE RDS FILE ON A NETWORK-MOUNTED DIRECTORY, 
+PLEASE ALSO READ SECTION 7.
+
+Most of the analysis steps described in the section above are 
+automated in a pipeline shell script called runStandardAnalysis.sh .
+Note that the pipeline assumes that it will call its own RNAFAR 
+regions, which is called "alternative 1" in the ANALYSIS section, 
+which is a good starting point. You can modify the pipeline script 
+to use alternative 2, if appropriate.
+
+The pipeline assumes that one RDS database containing the appropriate 
+uniq, multi, and spliced reads exists as desribed in README.build-rds.
+
+We assume that Cistematic 2.3 is installed, including a version of 
+the appropriate Cistematic genome. You will need to build your own 
+Cistematic genome for any unsupported genome.
+
+We will also need a radius (e.g. 20000 bp) within which a candidate 
+exon will be consolidated with an existing gene.
+
+For example, for the test.rds dataset from the ANALYSIS section, we 
+would run the pipeline as:
+
+. $ERANGEPATH/runStandardAnalysis.sh mouse test ../mm9repeats/rmask.db 20001
+
+where ERANGEPATH is the environmental variable set to the path to 
+the directory holding the ERANGE scripts. Remember that you can 
+replace '../mm9repeats/rmask.db' with 'none' if you don't have a 
+repeatmask database.
+
+This could run from an hour to a whole day depending on how many 
+reads are involved (1M vs 80M) and how big a consolidation radius 
+is used. 
+
+
+7. CUSTOM CISTEMATIC GENOME ANNOTATIONS
+
+Cistematic 3.0 added support for generic genomes and loadable 
+(or alternative) annotations. While this support is still 
+experimental, the general idea is to take a GTF/GFF3 file, 
+convert it into the format that cistematic expects using 
+
+$ERANGEPATH/gfftocis.py infile.gff outfile.cis
+
+NOTE THAT YOU WILL MOST LIKELY HAVE TO EDIT THIS FILE TO 
+ACCOMODATE YOUR SPECIFIC GFF FORMAT TO THE CISTEMATIC 
+FORMAT, WHICH IS
+
+geneID<tab>uniqRef<tab>chrom<tab>start<tab>stop<tab>sense<tab>type<return>
+
+where type is one of 'CDS','5UTR','3UTR'.
+
+You can then run the standard analysis script with the additional 
+flag " -models outfile.cis ", e.g.
+
+. runStandardAnalysis.sh generic asteph none 1000 -models agambiae.base.cis
+
+Custom annotation support will be extended to other PIPELINE 
+scripts as part of 3.2 final.
+
+
+8. PAIRED-END RNA-SEQ ANALYSIS
+
+We are now experimentally supporting paired-end RNA-seq, as 
+implemented in the pipeline script runRNAPairedAnalysis.sh and 
+is only provided as a "work-in-progress" snapshot.
+
+This is done primarily by marking all of the reads that map in a 
+known exon or a novel RNAFAR region in the RDS database, which 
+is a slow and time-consuming step (and is off by default for 
+single-ended RNA-seq). This mapping step is done without 
+accounting for paired-end information.
+
+The paired-end information is then used to connect RNAFAR 
+regions to known genes or to other RNAFAR regions using 
+reads with one end in a given region and the other end 
+in different (known or novel) region, as implemented in 
+rnafarPairs.py ; note that there is currently a default 
+limit of 500000 bp maximum distance between the two pairs.
+
+
+9. EXPRESSED SNP ANALYSIS
+
+ERANGE3 now supports SNP analysis in RNA-seq data as described 
+in README.rna-esnp .
+
+RELEASE HISTORY
+
+version 3.2    December 2009 - support for custom genome annotations with Cistematic 3.0
+version 3.1    April    2009 - modified normalizeFinalExonic.py to remove genome
+version 3.0    January  2009 - added logging to shell pipelines
+version 3.0rc1 December 2008 - added blat support
+version 3.0b2  December 2008 - bug fixes & ERANGEPATH variable
+version 3.0b   November 2008 - Support for paired end analysis
+version 3.0a    October 2008 - Preview release of ERANGE3.0
+version 2.0         May 2008 - First public release of ERANGE
+

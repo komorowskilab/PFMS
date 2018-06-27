@@ -1,0 +1,49 @@
+This is a description of the pipeline designed to do scaffolding 
+of fragmented genomes using RNA-seq. The code should run 
+on any Unix-like system supporting python 2.6 or better. The code 
+is developed on MacOS X on python 2.6.
+
+Note that RNAPATH is not currently optimized for running on machines with 
+small or medium amounts of RAM. 32 Gb minimum is recommended for the current 
+version.
+
+1. COMMAND LINE OPTIONS
+2. MAPPING THE READS AND BUILDING THE RDS FILES
+3. GETTING THE SCAFFOLDING READS
+4. RUNNING RNAPATH.py
+
+
+1. COMMAND LINE OPTIONS
+
+To find out more about the settings for each script, type:
+
+python $ERANGEPATH/<scriptname> 
+
+to see the command line options. Note that all ERANGE command-line 
+options are case-sensitive & that the scripts typically ignore 
+command-line arguments that they do not recognize!
+
+
+2. MAPPING THE READS AND BUILDING THE RDS FILES
+
+Before running the RNAPATH script on a genome (assumed to be in fasta format), 
+you will need to first map the RNA-seq reads using BLAT and import those reads
+into an RDS file, as described in README.build-rds . 
+
+3. GETTING THE SCAFFOLDING READS
+
+Once you have an indexed RDS file, use the scriipit distalPairs.py to output 
+the list of paired reads that do not map to the same contig. This involves 
+specifying a distance to distalPairs.py that is greater than the length of the 
+largest existing genomic contig. For example:
+
+python ../commoncode/distalPairs.py 20000 rna_on_genomic.rds rna_on_genomic.crosspairs -splices -cache 20000000
+
+4. RUNNING RNAPATH.py
+
+You can now run RNAPATH.py. I suggest optionallly using the included script processvelvet.py to rename the contigs, before running blat and generating the crosspair data.
+
+Example: $ERANGEPATH/rnapath/RNAPATH.py genomic_contigs.fa rna_on_genomic.crosspairs RNAPATH.log genome.RNAPATH.fa
+
+version 3.2    May  2010 - first release
+

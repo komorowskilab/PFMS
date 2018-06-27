@@ -1,0 +1,87 @@
+# analysis steps for an ERANGE analysis of RNA-seq data
+# This is an example of the command-line settings used to run each of the scripts in runStandardAnalysis.sh
+
+# preliminary: set PYTHONPATH to point to the parent directory of the Cistematic, e.g.
+#              export PYTHONPATH=/my/path/to/cistematic
+#
+# preliminary: set CISTEMATIC_ROOT to the directory that contains the genome directories (such as H_sapiens or M_musculus), e.g.
+#              export CISTEMATIC_ROOT=/my/path/to/cistematic_genomes
+#
+# preliminary: set ERANGEPATH, e.g. 
+#              export ERANGEPATH=/proj/genome/experiments/commoncode
+#
+# preliminary: set CISTEMATIC_TEMP to a local directory with ample space (default is /tmp), e.g. 
+#              export CISTEMATIC_TEMP=/any/local/dir
+#
+# preliminary: create splice file using getsplicefa.py with maxBorder set to 4 bp shorter than the read length, e.g.
+#              python $ERANGEPATH/getsplicefa.py hsapiens /my/path/to/human/knownGene.txt hg18splice32.fa 28
+#
+# preliminary: build expanded genome using Eland's squashGenome or Bowtie's bowtie-build (see README.build-rds)
+#              a slower alternative is to use blat just on the genome.
+#
+# preliminary: build repeatmask database using buildrmaskdb.py, e.g.
+#              python $ERANGEPATH/buildrmaskdb.py /path/to/hg19repeats /path/to/hg18repeats/rmask.db
+#              if you don't have an repeatmask database, just use "none" for the rmask database below
+
+# run bowtie on expanded genome or just blat on the regular genome
+# as described in README.build-rds
+#
+
+# create rds file with one lane's worth of data (add -index if using only one lane)
+# The example below sets the default cache to 1000000 
+# The name::value pairs are optional documentart metadata, and can be set to any desired name or value
+python $ERANGEPATH/makerdsfromblat.py 200GFAAXX 200GFAAXXs7.hg19.psl LHCN10213.rds -strict 5 -cache 1000000 library::10213 cellLine::LHCN genome::hg18v2 cellState::confluent flowcell::200GFAAXX  
+
+# can change a database cache size using rdsmetadata.py to speed up indexing and index-based lookups
+# rule of thumb for RNA-seq: set the cache size to half of the RAM on the computer
+#python $ERANGEPATH/rdsmetadata.py LHCN10213.rds -defaultcache 2000000 -nocount
+
+# append more data (only add -index when adding last lane)
+python $ERANGEPATH/makerdsfromblat.py 200GFAAXX 200GFAAXXs6.hg19.psl LHCN10213.rds -strict 5 -cache 1000000 -append -index  
+
+# count the unique reads falling on the gene models ; the nomatch files are 
+# mappable reads that fell outside of the Cistematic gene models and not the 
+# unmappable of Eland (i.e, the "NM" reads)
+python $ERANGEPATH/geneMrnaCounts.py hsapiens LHCN10213.rds LHCN10213.uniqs.count -markGID -cache 1
+
+# count splice reads
+python $ERANGEPATH/geneMrnaCounts.py hsapiens LHCN10213.rds LHCN10213.splices.count -splices -noUniqs -cache 1
+
+# calculate a first-pass RPKM to re-weigh the unique reads,
+# using 'none' for the splice count
+python $ERANGEPATH/normalizeExpandedExonic.py hsapiens LHCN10213.rds LHCN10213.uniqs.count none LHCN10213.firstpass.rpkm -cache
+
+# recount the unique reads with weights calculated during the first pass
+python $ERANGEPATH/geneMrnaCountsWeighted.py hsapiens LHCN10213.rds LHCN10213.firstpass.rpkm LHCN10213.uniqs.recount -uniq -cache 1
+
+# There is a choice of either identifying new regions from the data alone 
+# (Alternative 1), or using a pre-computed list of new regions (presumably 
+# pooled from multiple nomatch.bed files, or literature) against the nomatch.bed
+# file (Alternative 2)
+
+# Alternative 1: find new regions outside of gene models with reads piled up 
+python $ERANGEPATH/findall.py RNAFAR LHCN10213.rds LHCN10213.newregions.txt -RNA -minimum 1 -nomulti -flag NM -log rna.log -cache 1
+
+# Alternative 1: filter out new regions that overlap repeats more than a certain fraction 
+#                use "none" if you don't have a repeatmask database
+python $ERANGEPATH/checkrmask.py ../hg19repeats/rmask.db LHCN10213.newregions.txt LHCN10213.newregions.repstatus LHCN10213.newregions.good -log rna.log -startField 1 -cache 1
+
+# Alternative 2: use a precomputed list of "new" regions (outside of gene models)
+#python2.5 $ERANGEPATH/regionCounts.py ../RNAFAR/all.newregions.good LHCN10213.rds LHCN10213.newregions.good
+
+# map all candidate regions that are within a 20kb radius of a gene in bp
+# take out -cache if running locally
+python $ERANGEPATH/getallgenes.py hsapiens LHCN10213.newregions.good LHCN10213 -radius 20001 -trackfar -cache
+
+# calculate expanded exonic read density
+python $ERANGEPATH/normalizeExpandedExonic.py hsapiens LHCN10213.rds LHCN10213.uniqs.recount LHCN10213.splices.count LHCN10213.expanded.rpkm LHCN10213.candidates.txt LHCN10213.accepted.rpkm -cache
+
+# create bed file of accepted candidate regions
+python2.5 $ERANGEPATH/regiontobed.py RNAFAR LHCN10213.accepted.rpkm RNAFAR.bed 255,0,0
+
+# weigh multi-reads
+python $ERANGEPATH/geneMrnaCountsWeighted.py hsapiens LHCN10213.rds LHCN10213.expanded.rpkm LHCN10213.multi.count -accept LHCN10213.accepted.rpkm -multi -cache 1
+
+# calculate final exonic read density
+python $ERANGEPATH/normalizeFinalExonic.py LHCN10213.rds LHCN10213.expanded.rpkm LHCN10213.multi.count LHCN10213.final.rpkm -multifraction -withGID -cache
+

@@ -1,0 +1,75 @@
+This is a description of the pipeline designed to analyze single 
+nucleotide changes found in the mapped reads. The code should run 
+on any Unix-like system supporting python 2.5 or better. The code 
+is developed on MacOS X on python 2.5.
+
+1. COMMAND LINE OPTIONS
+2. BUILDING THE SNP DATABASE
+3. RUNNING THE SNP PIPELINE
+
+
+1. COMMAND LINE OPTIONS
+
+To find out more about the settings for each script, type:
+
+python $ERANGEPATH/<scriptname> 
+
+to see the command line options. Note that all ERANGE command-line 
+options are case-sensitive & that the scripts typically ignore 
+command-line arguments that they do not recognize!
+
+
+2. BUILDING THE SNP DATABASE
+
+In order to check the candidate SNPs versus known SNPs, you will need 
+to first download the corresponding dbSNP database file from UCSC and 
+then build a sqlite version of it using:
+
+python $ERANGEPATH/buildsnpdb.py ucscSNPfile outdb
+
+e.g.
+
+python buildsnpdb.py snp128.txt dbSNP128
+
+
+3. RUNNING THE SNP PIPELINE
+
+The runSNPAnalysis.sh shell script is designed to retrieve SNPs, filter
+them against repeat annotations, cross-check them against known SNPs and
+annotate the novel SNPs. It will automatically run a set of python scripts 
+that are required for the SNPs analysis using the RDS (Read DataSet) file. 
+This script assumes the existence of a known SNP database as described in 
+the previous section as well as of a repeatmask database
+
+Usage: $ERANGEPATH/runSNPAnalysis.sh genome rdsfile label rmaskdbfile dbsnpfile uniqStartMin totalRatio rpkmfile cachepages
+
+where ERANGEPATH is the environmental variable set to the path to the directory holding the ERANGE scripts.
+
+Parameters:
+- genome: the name of the organism in the analysis.
+- rdsfile: read DataSet file. See README.build-rds for 
+more information.
+- label: the file name of your choice for the analysis.
+- rmaskdbfile: repeat mask database, a sqlite database file. See 
+README.rna-seq for more information on creating the database.
+- dbsnpfile: dbsnp database, a sqlite database file, built from the 
+dbSNP database text file from UCSC. Please see command line option 
+for building dbsnp sqlite database using buildsnpdb.py .
+- uniqStartMin: the ratio of the number of unique reads supporting a 
+SNP at base s and the maximum number of unique read coverage at base s .
+5 is a good number to start with.
+- totalRatio: the ratio of the number of reads supporting an 
+expressed SNP at s and the total read coverage at s . 0.75 should allow 
+you to get the homozygous SNPs.
+- rpkmfile: rpkm file can be generated using the RNA-seq pipeline as 
+described in README.rna-seq.  If you do not have that file, you can 
+set it to NONE.
+- cachepages: cache pages. Make sure to use as much caching as your 
+system will accomodate. See README.build-rds for more information.
+
+Example: $ERANGEPATH/runSNPAnalysis.sh mouse 24T4spike.rds 24Tspike rmask.db dbSNP128.db 5 0.75 c2c12rna.24R.final.rpkm 5000000 
+
+version 3.0    January  2009 - logging
+version 3.0rc1 December 2008 - major rewrite and speed-up of getSNPs.py and chksnp.py
+version 3.0b2  December 2008 - bug fixes & ERANGEPATH variable
+

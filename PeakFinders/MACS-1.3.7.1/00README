@@ -1,0 +1,408 @@
+README for MACS (1.3.7)
+Time-stamp: <2009-10-02 01:50:00 Tao Liu>
+
+* Introduction
+
+With the improvement of sequencing techniques, chromatin
+immunoprecipitation followed by high throughput sequencing (ChIP-Seq)
+is getting popular to study genome-wide protein-DNA interactions. To
+address the lack of powerful ChIP-Seq analysis method, we present a
+novel algorithm, named Model-based Analysis of ChIP-Seq (MACS), for
+identifying transcript factor binding sites. MACS captures the
+influence of genome complexity to evaluate the significance of
+enriched ChIP regions, and MACS improves the spatial resolution of
+binding sites through combining the information of both sequencing tag
+position and orientation. MACS can be easily used for ChIP-Seq data
+alone, or with control sample with the increase of specificity.
+
+* Install
+
+Please check the file 'INSTALL' in the distribution.
+
+* Usage
+
+Usage: macs <-t tfile> [options]
+
+macs -- Model-based Analysis for ChIP-Sequencing
+
+Options:
+  --version             show program's version number and exit
+  -h, --help            show this help message and exit.
+  -t TFILE, --treatment=TFILE
+                        ChIP-seq treatment files. REQUIRED. When ELANDMULTIPET
+                        is selected, you must provide two files separated by
+                        comma, e.g.
+                        s_1_1_eland_multi.txt,s_1_2_eland_multi.txt
+  -c CFILE, --control=CFILE
+                        Control files. When ELANDMULTIPET is selected, you
+                        must provide two files separated by comma, e.g.
+                        s_2_1_eland_multi.txt,s_2_2_eland_multi.txt
+  --name=NAME           Experiment name, which will be used to generate output
+                        file names. DEFAULT: "NA"
+  --format=FORMAT       Format of tag file, "BED" or "ELAND" or "ELANDMULTI"
+                        or "ELANDMULTIPET" or "SAM" or "BAM" or "BOWTIE".
+                        Please check the definition in 00README file before
+                        you choose
+                        ELAND/ELANDMULTI/ELANDMULTIPET/SAM/BAM/BOWTIE.
+                        DEFAULT: "BED"
+  --gsize=GSIZE         Effective genome size, default:2.7e+9
+  --tsize=TSIZE         Tag size. DEFAULT: 25
+  --bw=BW               Band width. This value is used while building the
+                        shifting model. If --nomodel is set, 2 time of this
+                        value will be used as a scanwindow width. DEFAULT: 300
+  --pvalue=PVALUE       Pvalue cutoff for peak detection. DEFAULT: 1e-5
+  --mfold=MFOLD         Select the regions with MFOLD high-confidence
+                        enrichment ratio against background to build model.
+                        DEFAULT:32
+  --wig                 Whether or not to save shifted raw tag count at every
+                        bp into a wiggle file. WARNING: this process is
+                        time/space consuming!!
+  --wigextend=WIGEXTEND
+                        If set as an integer, when MACS saves wiggle files, it
+                        will extend tag from its middle point to a wigextend
+                        size fragment. By default it is modeled d. Use this
+                        option if you want to increase the resolution in
+                        wiggle file. It doesn't affect peak calling.
+  --space=SPACE         The resoluation for saving wiggle files, by default,
+                        MACS will save the raw tag count every 10 bps. Usable
+                        only with '--wig' option.
+  --nolambda            If True, MACS will use fixed background lambda as
+                        local lambda for every peak region. Normally, MACS
+                        calculates a dynamic local lambda to reflect the local
+                        bias due to potential chromatin structure.
+  --lambdaset=LAMBDASET
+                        Three levels of nearby region in basepairs to
+                        calculate dynamic lambda, DEFAULT: "1000,5000,10000"
+  --nomodel             Whether or not to build the shifting model. If True,
+                        MACS will not build model. by default it means
+                        shifting size = 100, try to set shiftsize to change
+                        it. DEFAULT: False
+  --shiftsize=SHIFTSIZE
+                        The arbitrary shift size in bp. When nomodel is true,
+                        MACS will regard this value as 'modeled' d. DEFAULT:
+                        100
+  --diag                Whether or not to produce a diagnosis report. It's up
+                        to 9X time consuming. Please check 00README file for
+                        detail. DEFAULT: False
+  --futurefdr           Whether or not to perform the new peak detection
+                        method which is though to be more suitable for sharp
+                        peaks. The default method only consider the peak
+                        location, 1k, 5k, and 10k regions in the control data;
+                        whereas the new future method also consider the 5k,
+                        10k regions in treatment data to calculate local bias.
+                        DEFAULT: False
+  --petdist=PETDIST     Best distance between Pair-End Tags. Only available
+                        when format is 'ELANDMULTIPET'. DEFAULT: 200
+  --verbose=VERBOSE     Set verbose level. 0: only show critical message, 1:
+                        show additional warning message, 2: show process
+                        information, 3: show debug messages. DEFAULT:2
+  --fe-min=FEMIN        For diagnostics, min fold enrichment to consider.
+                        DEFAULT: 0
+  --fe-max=FEMAX        For diagnostics, max fold enrichment to consider.
+                        DEFAULT: maximum fold enrichment
+  --fe-step=FESTEP      For diagnostics, fold enrichment step.  DEFAULT: 20
+
+** Parameters:
+
+*** -t/--treatment FILENAME
+
+This is the only REQUIRED parameter for MACS. If the format is
+ELANDMULTIPET, user must provide two treatment files separated by
+comma, e.g. s_1_1_eland_multi.txt,s_1_2_eland_multi.txt
+
+*** -c/--control
+
+The control or mock data file in either BED format or any ELAND output
+format specified by --format option. Please follow the same direction
+as for -t/--treatment.
+
+*** --format FORMAT
+
+Format of tag file, can be "ELAND" or "BED" or "ELANDMULTI" or
+"ELANDMULTIPET" (for pair-end tags) or "SAM" or "BAM" or
+"BOWTIE". Default is "BED".
+
+The BED format is defined in "http://genome.ucsc.edu/FAQ/FAQformat#format1".
+
+If the format is ELAND, the file must be ELAND result output file,
+each line MUST represents only ONE tag, with fields of:
+
+ 1. Sequence name (derived from file name and line number if format is not Fasta)
+ 2. Sequence
+ 3. Type of match: 
+ NM - no match found.
+ QC - no matching done: QC failure (too many Ns basically).
+ RM - no matching done: repeat masked (may be seen if repeatFile.txt was specified).
+ U0 - Best match found was a unique exact match.
+ U1 - Best match found was a unique 1-error match. 
+ U2 - Best match found was a unique 2-error match. 
+ R0 - Multiple exact matches found.
+ R1 - Multiple 1-error matches found, no exact matches.
+ R2 - Multiple 2-error matches found, no exact or 1-error matches.
+ 4. Number of exact matches found.
+ 5. Number of 1-error matches found.
+ 6. Number of 2-error matches found.
+ Rest of fields are only seen if a unique best match was found (i.e. the match code in field 3 begins with "U").
+ 7. Genome file in which match was found.
+ 8. Position of match (bases in file are numbered starting at 1).
+ 9. Direction of match (F=forward strand, R=reverse).
+ 10. How N characters in read were interpreted: ("."=not applicable, "D"=deletion, "I"=insertion).
+ Rest of fields are only seen in the case of a unique inexact match (i.e. the match code was U1 or U2).
+ 11. Position and type of first substitution error (e.g. 12A: base 12 was A, not whatever is was in read).
+ 12. Position and type of first substitution error, as above. 
+
+If the format is ELANDMULTI, the file must be ELAND output file from
+multiple-match mode, each line MUST represents only ONE tag, with
+fields of:
+
+ 1. Sequence name 
+ 2. Sequence 
+ 3. Either NM, QC, RM (as described above) or the following: 
+ 4. x:y:z where x, y, and z are the number of exact, single-error, and 2-error matches found
+ 5. Blank, if no matches found or if too many matches found, or the following:
+    BAC_plus_vector.fa:163022R1,170128F2,E_coli.fa:3909847R1 This says
+    there are two matches to BAC_plus_vector.fa: one in the reverse
+    direction starting at position 160322 with one error, one in the
+    forward direction starting at position 170128 with two
+    errors. There is also a single-error match to E_coli.fa.
+
+If the data is from Pair-End sequencing. You can sepecify the format
+as ELANDMULTIPET ( stands for ELAND Multiple-match Pair-End Tags),
+then the --treat (and --control if needed) parameter must be two file
+names separated by comma. Each file must be in ELAND multiple-match
+format described above. e.g.
+
+macs --format ELANDMULTIPET -t s_1_1_eland_multi.txt,s_2_1_eland_multi.txt ...
+
+If you use ELANDMULTIPET, you may need to modify --petdist parameter.
+
+If the format is BAM/SAM, please check the definition in
+(http://samtools.sourceforge.net/samtools.shtml)
+
+If the format is BOWTIE, you need to provide the ASCII bowtie output
+file with the suffix '.map'. Please note that, you need to make sure
+that in the bowtie output, you only keep one location for one
+read. Check the bowtie manual for detail if you want at
+(http://bowtie-bio.sourceforge.net/manual.shtml)
+
+Here is the definition for Bowtie output in ASCII characters I copied
+from the above webpage:
+
+   1.  Name of read that aligned
+
+   2. Orientation of read in the alignment, - for reverse complement,
+   + otherwise
+
+   3. Name of reference sequence where alignment occurs, or ordinal ID
+   if no name was provided
+
+   4. 0-based offset into the forward reference strand where leftmost
+   character of the alignment occurs
+
+   5. Read sequence (reverse-complemented if orientation is -)
+
+   6. ASCII-encoded read qualities (reversed if orientation is -). The
+   encoded quality values are on the Phred scale and the encoding is
+   ASCII-offset by 33 (ASCII char !).
+
+   7. Number of other instances where the same read aligns against the
+   same reference characters as were aligned against in this
+   alignment. This is not the number of other places the read aligns
+   with the same number of mismatches. The number in this column is
+   generally not a good proxy for that number (e.g., the number in
+   this column may be '0' while the number of other alignments with
+   the same number of mismatches might be large). This column was
+   previously described as "Reserved".
+
+   8. Comma-separated list of mismatch descriptors. If there are no
+   mismatches in the alignment, this field is empty. A single
+   descriptor has the format offset:reference-base>read-base. The
+   offset is expressed as a 0-based offset from the high-quality (5')
+   end of the read.
+
+Notes:
+
+1) For BED format, the 6th column of strand information is required by
+MACS. And please pay attention that the coordinates in BED format is
+zero-based and half-open
+(http://genome.ucsc.edu/FAQ/FAQtracks#tracks1).
+
+2) For plain ELAND format, only matches with match type U0, U1 or U2 is
+accepted by MACS, i.e. only the unique match for a sequence with less
+than 3 errors is involed in calculation. If multiple hits of a single
+tag are included in your raw ELAND file, please remove the redundancy
+to keep the best hit for that sequencing tag.
+
+3) For the experiment with several replicates, it is recommended to
+concatenate several ChIP-seq treatment files into a single file. To do
+this, under Unix/Mac or Cygwin (for windows OS), type:
+
+$ cat replicate1.bed replicate2.bed replicate3.bed > all_replicates.bed
+
+** --petdist=PETDIST     
+
+Best distance between Pair-End Tags. Only available when format is
+'ELANDMULTIPE'. Default is 200bps. When MACS reads mapped positions
+for 5' tag and 3' tag, it will decide the best pairing for them using
+this best distance parameter. A simple scoring system is used as following,
+
+score = abs(abs(p5-p3)-200)+e5+e5
+
+Where p5 is one of the position of 5' tag, and e5 is the
+mismatch/error for this mapped position of 5' tag. p3 and e3 are for
+3' tag. Then the lowest scored paring is regarded as the best
+pairing. The 5' tag position of the pair is kept in model building and
+peak calling.
+
+*** --name
+
+The name string of the experiment. MACS will use this string NAME to
+create output files like 'NAME_peaks.xls', 'NAME_negative_peaks.xls',
+'NAME_peaks.bed' ,'NAME_model.r' and so on. So please avoid any
+confliction between these filenames and your existing files.
+
+*** --gsize
+
+PLEASE assign this parameter to fit your needs!
+
+It's the mappable genome size or effective genome size which is
+defined as the genome size which can be sequenced. Because of the
+repetitive features on the chromsomes, the actual mappable genome size
+will be smaller than the original size. The default 2.7Gb is
+recommended for UCSC human hg18 assembly. For other species, you may
+simply regard 70% or 90% of the actual genome size as mappable.
+
+*** --tsize
+
+The size of sequencing tags. Default is 25 nt.
+
+*** --bw
+
+The band width which is used to scan the genome for model
+building. You can set this parameter as the half of sonication
+fragment size expected from wet experiment.
+
+Another effect for this parameter is, when you set the '--nomodel'
+argument to bypass the model building procedure, that 2*bw will be
+used as a scan window width.
+
+*** --pvalue
+
+The pvalue cutoff. Default is 1e-5.
+
+*** --mfold
+
+This parameter is used to select the regions with MFOLD fold tag
+enrichment against background to build model. Default is 32. Higher
+the MFOLD, less the number of candidate regions. If you see an ERROR or
+CRITICAL message from MACS, it is recommended to lower this parameter.
+
+*** --verbose
+
+If you don't want to see any message during the running of MACS, set
+it to 0. But the CRITICAL messages will never be hidden. If you want
+to see rich information like how many peaks are called for every
+chromosome, you can set it to 3 or larger than 3.
+
+** --wig
+
+If this flag is on, MACS will store the number of shifted tags in
+wiggle format for every chromosomes. The gzipped wiggle files will be
+stored in subdirectories named EXPERIMENT_NAME+'_MACS_wiggle/treat'
+for treatment data and EXPERIMENT_NAME+'_MACS_wiggle/control' for
+control data.
+
+** --wigextend=WIGEXTEND
+
+If set as an integer, when MACS saves wiggle files, it will extend tag
+from its middle point to a specific size. By default it is modeled
+d. Use this option if you want to modify the resolution in wiggle
+file. It doesn't affect peak calling.
+
+** --space=SPACE         
+
+By default, the resoluation for saving wiggle files is 10 bps,i.e.,
+MACS will save the raw tag count every 10 bps. You can change it along
+with '--wig' option.
+
+** --nolambda
+
+With this flag on, MACS will use the background lambda as local lambda.
+
+** --lambdaset
+
+This parameter controls which three levels of regions will be checked
+around the peak region to calculate the maximum lambda as local
+lambda. By default, MACS considers 1000bp, 5000bp and 10000bp regions
+around. 
+
+The parameter is a string value like '1000,5000,10000'.
+
+** --nomodel
+
+While on, MACS will bypass building the shifting model.
+
+** --shiftsize
+
+While '--nomodel' is set, MACS uses this parameter to shift tags to
+their midpoint. For example, if the size of binding region for your
+transcription factor is 200 bp, and you want to bypass the model
+building by MACS, this parameter can be set as 100.
+
+** --diag
+
+A diagnosis report can be generated through this option. This report
+can help you get an assumption about the sequencing saturation. This
+funtion is only in beta stage.
+
+** --fe-min, --fe-max & --fe-step
+
+For diagnostics, FEMIN and FEMAX are the minimum and maximum fold
+enrichment to consider, and FESTEP is the interval of fold
+enrichment. For example, "--fe-min 0 --fe-max 40 --fe-step 10" will
+let MACS choose the following fold enrichment ranges to consider:
+[0,10), [10,20), [20,30) and [30,40).
+
+
+* Output files
+
+ 1. NAME_peaks.xls is a tabular file which contains information about
+called peaks. You can open it in excel and sort/filter using excel
+functions. Information include: chromosome name, start position of
+peak, end position of peak, length of peak region, peak summit
+position related to the start position of peak region, number of tags
+in peak region, -10*log10(pvalue) for the peak region (e.g. pvalue
+=1e-10, then this value should be 100), fold enrichment for this region
+against random Poisson distribution with local lambda, FDR in
+percentage. Coordinates in XLS is 1-based which is different with BED
+format.
+
+ 2. NAME_peaks.bed is BED format file which contains the peak
+locations. You can load it to UCSC genome browser or Affymetrix IGB
+software.
+
+ 3. NAME_negative_peaks.xls is a tabular file which contains
+information about negative peaks. Negative peaks are called by
+swapping the ChIP-seq and control channel.
+
+ 4. NAME_model.r is an R script which you can use to produce a PDF
+image about the model based on your data. Load it to R by:
+
+$ R --vanilla < NAME_model.r
+
+Then a pdf file NAME_model.pdf will be generated in your current
+directory. Note, R is required to draw this figure.
+
+ 5. NAME_treat/control_afterfiting.wig.gz files in NAME_MACS_wiggle
+ directory are wiggle format files which can be imported to UCSC
+ genome browser/GMOD/Affy IGB.
+
+ 6. NAME_diag.xls is the diagnosis report. First column is for various
+ fold_enrichment ranges; the second column is number of peaks for that fc
+ range; after 3rd columns are the percentage of peaks covered after
+ sampling 90%, 80%, 70% ... and 20% of the total tags.
+
+* FAQs
+
+NA now.
+

@@ -1,0 +1,232 @@
+This is an updated version of the core of the ChIP-seq 
+analysis code described in Johnson et al (2007).  It 
+should run on any Unix-like system supporting python 2.5 
+or better. The code is developed on Linux and MacOS X on 
+python 2.5.
+
+These scripts in the ChIPSeqMini package are now part of 
+the ERANGE package, but are still available as a 
+standalone package for now.
+
+This code is made available as open-source, as described 
+in the copyright file ERANGE.COPYRIGHT.
+
+
+1. REQUIREMENTS
+2. COMMAND LINE OPTIONS
+3. MAKING THE NECESSARY INPUT (RDS) FILES
+4. WEIGHING MULTIREADS
+5. RUNNING THE PEAK FINDER
+6. DISPLAYING DATA ONTO THE  UCSC GENOME BROWSER
+7. DOWNSTREAM ANALYSES
+
+
+1. REQUIREMENTS
+
+1) Python 2.5 is required because some of the scripts and 
+Cistematic (see below) need pysqlite, which is now bundled in 
+Python.
+
+2) You will also need to use Cistematic 2.3 (available at 
+cistematic.caltech.edu) for all of the scripts that are 
+part of the downstream analyses.
+
+(optional) Use of the psyco module (psyco.sf.net) on 32-bit 
+Linux or Mac Intel machines is highly recommended.
+
+(optional) Three visualization scripts also depend on the 
+additional package pylab (matplotlib). These scripts are:
+- getgosig.py
+- plotbardist.py
+- scatterfields.py 
+You do not need to install pylab if you will be 
+visualizing some of your analysis results differently.
+
+
+2. COMMAND LINE OPTIONS
+
+You can find out more about the settings for each script
+by typing:
+
+python $ERANGEPATH/<scriptname> 
+
+to see the command line options, where ERANGEPATH is the 
+environmental variable set to the path to the directory 
+holding the ERANGE scripts. Note that the command line 
+options are case sensitive and that they could well 
+fail silently.
+
+
+3. MAKING THE NECESSARY INPUT (RDS) FILES
+
+You will want to first convert your read mappings to the 
+native ERANGE read store. Please see the file 
+README.build-rds for instructions on how to do this.
+
+Build an RDS file for both the ChIP, and if available and 
+appropriate, the control. Note that we *HIGHLY* recommend 
+the use of a matched control sample to account for some 
+of the general background artifacts that can be present 
+in ChIP-seq samples (e.g. DNAse hypersensitivity, 
+assembly collapse of some sattelite repeats, etc....). 
+
+
+4. WEIGHING MULTIREADS
+
+Version 3.0 of the peak finder can use multireads, i.e. 
+reads that map equally well to more than one location 
+in the genome, to find binding sites that are in low 
+copy-number on-unique regions (typically less than 10).
+
+ERANGE offers 3 ways to analyze these regions:
+(a) default weighing of 1/multiplicity
+(b) ignoring multireads
+(c) weighing of multireads based on unique reads in a 
+given radius 
+
+(a) is the default in the current release of ERANGE. 
+Simply proceed to RUNNING THE PEAK FINDER for (a) and 
+(a). You can ignore multireads (b) by using the -nomulti 
+flag with findall.py. For (c), use weighMultireads.py 
+to weigh multireads based on a unique reads in the 
+respective radius of each potential location. Once run, 
+proceed to the section below.
+
+
+5. RUNNING THE PEAK FINDER
+
+To run the peak finder without read shifting, use the 
+following command:
+
+python $ERANGEPATH/findall.py label chip.rds chip.regions.txt -control control.rds -listPeak -revbackground
+
+which will run the peak finder on chip.rds / control.rds , 
+store the enriched region coordinates in chip.regions.txt, 
+also store the actual local maximum in each region in the 
+same file, and also calculate an FDR by running the 
+finder on control.rds / chip.rds . 
+
+A log file (findall.log by default, change with -log) 
+tracks the settings used to run the program as well as 
+some of the summary statistics, which are also stored 
+at the bottom of the regions.txt output file.
+
+findall.py is tuned to conservative settings for 10-12M 
+mappable read IPs of static, sequence-specific 
+transcription factors in mammals with very short 
+fragment sizes, on the order of 40-60 bp. 
+
+You will *NEED* to change some of the default parameters 
+if working in smaller genomes (e.g. use smaller -spacing), 
+if working with certain types of IPs such as histones and 
+polymerases (test with and without -notrim and 
+-nodirectionality), if working with rather weak IPs
+(e.g. -minimum and -ratio), or if working with larger 
+fragment sizes (see the paragraph below discussing read 
+shifting). 
+
+findall.py returns a per-peak p-value. By default, this 
+is calculated using a Poisson distribution of peak RPMs 
+(or counts, if using -raw) for each chromosome in the IP. 
+P-value calculations can be turned off using 
+'-pvalue none '. Alternatively, the p-value can be 
+calculated from the background using the option 
+'-pvalue back ', which must be combined with the option 
+-revbackground.
+
+By default, findall.py does not try to adjust the location 
+of the reads based on half the size of the expected fragment 
+length (the "shift"). If you believe that you need to shift 
+your peaks, findall.py can try to pick the best shift based 
+on the best shift for strong sites using the parameter 
+'-shift learn '. You can also either manually specify a 
+shift value using '-shift #bp ' or ou can calculate a 
+"best shift" for each region using '-autoshift'. If you 
+need to using the shift options, the recommended usage is:
+(i) first run findall.py with '-shift learn ', which will 
+peak a shift if there are at least 30 regions that meet 
+its training criteria.
+(ii) if (i) couldn't pick a shift, run findall.py with 
+-autoshift and -reportshift
+(iii) look at the mode (most common #) for the shift
+(iv) rerun findall.py with -shift #bp where #bp is the mode
+  
+If you are storing the RDS files on an network-mounted 
+directory, make sure to use '-cache XXXXX' to enable 
+local caching, where is as large as appropriate as 
+described in section 9 of README.build-rds . 
+
+Note that ERANGE will cache by default to /tmp, but this 
+can be redirected to any directory pointed to by the 
+environmental variable CISTEMATIC_TEMP.
+
+To find out the current default settings and options, 
+simply type:
+
+python $ERANGEPATH/findall.py
+
+for more information.
+
+
+6. DISPLAYING DATA ONTO THE  UCSC GENOME BROWSER
+
+You can output bed-files of the raw reads using 
+makebedfromrds.py and  BEDGRAPH file using 
+makewiggle.py as described in README.build-rds .
+
+You can create bed files of regions and sites (see 
+below) using regiontobed.py and makesitetrack.py .
+
+
+7. DOWNSTREAM ANALYSES
+
+Recall that Cistematic 2.3 is a required to do motif 
+and gene-level analyses of the output of findall.py.
+
+Use getallgenes.py to find the nearest gene within a 
+radius of each binding site.
+
+Use analyzego.py to do a Gene Ontology enrichment 
+analysis of a gene list (such as from getallgenes.py). 
+You can look at a heatmap of your GO enrichments using 
+getgosig.py. You can also use getGOgenes.py to look at 
+the genes with particular GO annotations.
+
+To do motif-finding, use getfasta.py to get the sequences 
+centered on the peaks of your regions of interest. For 
+the sake of a pleasant experience, try limiting yourself 
+to less than 100kb of combined sequence (the easiest being 
+by picking your regions with the strongest signals).
+
+Once you have a fasta file of the regions of interest, you 
+can use findMotifs.py to find motifs using either 
+cisGreedy (bundled with Cistematic 2.2) which is good for 
+shorter motifs or Meme (must be installed separately - 
+refer to the instructions on cistematic.caltech.edu for 
+more information), which is better for longer motifs. 
+findmotifs.py will return a set motifs in Cistematic format 
+with a .mot extension. These motifs can then be used with 
+getallsites.py to get the coordinates and instances of each 
+motif in all of the regions found by the peak finder.
+
+The sites can be checked against repeat-masker annotations 
+(preloaded from UCSC with buildrmaskdb.py) using 
+checkrmask.py. The sites for each motif can also be fed 
+back into getallgenes.py to get genes, redo the GO analyses, 
+etc....
+
+You can use the intersect scripts (intersects.py, 
+gointersects.py, and siteintersects.py) to compare different 
+sets of genes/GO/site results across multiple experiments, 
+for example.
+
+
+RELEASE HISTORY
+
+version 3.1    February 2009 - support for read shifting
+version 3.0    February 2009 - support for UCSC narrowPeak format in regiontobed.py
+version 3.0rc1 December 2008 - added parameter to control peak-trimming
+version 3.0b2  December 2008 - added per-peak p-value
+version 3.0b   November 2008 - initial release of RDS-based code 
+with support for eland and bowtie.
+
